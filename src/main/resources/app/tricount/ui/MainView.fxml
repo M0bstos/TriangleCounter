@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ToolBar?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.Pane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+    fx:controller="app.tricount.ui.MainViewController">
+  <top>
+    <ToolBar fx:id="toolbar">
+      <Label text="Toolbar placeholder" />
+    </ToolBar>
+  </top>
+  <center>
+    <StackPane>
+      <Pane fx:id="canvasPane" prefHeight="400.0" prefWidth="600.0" />
+      <Label text="Drawing canvas placeholder" />
+    </StackPane>
+  </center>
+  <right>
+    <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="8.0" prefWidth="220.0">
+      <children>
+        <Label text="Counts panel placeholder" />
+      </children>
+      <padding>
+        <Insets top="12" right="12" bottom="12" left="12" />
+      </padding>
+    </VBox>
+  </right>
+</BorderPane>
