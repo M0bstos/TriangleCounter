@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.Pane?>
@@ -12,23 +16,34 @@
     fx:controller="app.tricount.ui.MainViewController">
   <top>
     <ToolBar fx:id="toolbar">
-      <Label text="Toolbar placeholder" />
+      <items>
+        <ToggleButton fx:id="drawToggle" text="Draw" />
+        <ToggleButton fx:id="deleteToggle" text="Delete" />
+        <Separator orientation="VERTICAL" />
+        <Button fx:id="undoButton" disable="true" text="Undo" />
+        <Button fx:id="redoButton" disable="true" text="Redo" />
+      </items>
     </ToolBar>
   </top>
   <center>
-    <StackPane>
-      <Pane fx:id="canvasPane" prefHeight="400.0" prefWidth="600.0" />
-      <Label text="Drawing canvas placeholder" />
-    </StackPane>
+    <StackPane fx:id="canvasPane" prefHeight="400.0" prefWidth="600.0" />
   </center>
   <right>
-    <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="8.0" prefWidth="220.0">
+    <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="8.0" prefWidth="280.0">
       <children>
-        <Label text="Counts panel placeholder" />
+        <Label text="Segments" styleClass="section-title" />
+        <ListView fx:id="segmentListView" prefWidth="260.0" />
       </children>
       <padding>
         <Insets top="12" right="12" bottom="12" left="12" />
       </padding>
     </VBox>
   </right>
+  <bottom>
+    <Label fx:id="statusLabel" text="Ready">
+      <padding>
+        <Insets top="6" right="12" bottom="6" left="12" />
+      </padding>
+    </Label>
+  </bottom>
 </BorderPane>
