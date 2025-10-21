@@ -14,8 +14,10 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Point2D;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.ToolBar;
@@ -70,6 +72,21 @@ public final class MainViewController {
   @FXML
   private ListView<String> segmentListView;
 
+  @FXML
+  private Label segmentCountLabel;
+
+  @FXML
+  private Label vertexCountLabel;
+
+  @FXML
+  private Label triangleCountLabel;
+
+  @FXML
+  private CheckBox highlightToggle;
+
+  @FXML
+  private ProgressIndicator recomputeIndicator;
+
   private final ObservableList<Segment> segments = FXCollections.observableArrayList();
   private final ObservableList<String> segmentItems = FXCollections.observableArrayList();
   private final VertexRegistry vertexRegistry = new VertexRegistry(VERTEX_MERGE_TOLERANCE);
@@ -87,6 +104,9 @@ public final class MainViewController {
   private final List<Point2D> snapVertices = new ArrayList<>();
   private final Deque<Command> undoStack = new ArrayDeque<>();
   private final Deque<Command> redoStack = new ArrayDeque<>();
+  private TriangleCounterService triangleService;
+  private List<List<Point2D>> currentTriangles = List.of();
+
   private SegmentCanvas segmentCanvas;
   private boolean drawingActive;
   private double anchorX;
@@ -100,6 +120,7 @@ public final class MainViewController {
     segmentCanvas.prefWidthProperty().bind(canvasPane.widthProperty());
     segmentCanvas.prefHeightProperty().bind(canvasPane.heightProperty());
     canvasPane.getChildren().setAll(segmentCanvas);
+    segmentCanvas.setTriangleOverlayVisible(false);
     segmentCanvas.updateVertexLabels(List.of());
     if (segmentListView != null) {
       segmentListView.setItems(segmentItems);
@@ -112,6 +133,8 @@ public final class MainViewController {
     updateSegmentList();
     configureToolbar();
     wireCanvasEvents();
+    configureHighlightToggle();
+    configureTriangleService();
     setStatus("Draw mode: click to start a segment");
   }
 
@@ -160,6 +183,60 @@ public final class MainViewController {
     segmentCanvas.addEventHandler(KeyEvent.KEY_PRESSED, this::handleKeyPress);
     segmentCanvas.setOnMouseEntered(e -> segmentCanvas.requestFocus());
   }
+
+  private void configureHighlightToggle() {
+    if (highlightToggle != null) {
+      highlightToggle.setSelected(false);
+      highlightToggle.selectedProperty().addListener((obs, old, value) -> applyTriangleOverlay());
+    }
+    if (recomputeIndicator != null) {
+      recomputeIndicator.setVisible(false);
+      recomputeIndicator.setManaged(false);
+    }
+  }
+
+  private void configureTriangleService() {
+    triangleService = new TriangleCounterService(segments);
+    triangleService.setListener(new TriangleCounterService.Listener() {
+      @Override
+      public void onStart() {
+        if (recomputeIndicator != null) {
+          recomputeIndicator.setManaged(true);
+          recomputeIndicator.setVisible(true);
+        }
+      }
+
+      @Override
+      public void onSuccess(TriangleCounterService.Result result) {
+        if (recomputeIndicator != null) {
+          recomputeIndicator.setManaged(false);
+          recomputeIndicator.setVisible(false);
+        }
+        if (segmentCountLabel != null) {
+          segmentCountLabel.setText(Integer.toString(result.segmentCount()));
+        }
+        if (vertexCountLabel != null) {
+          vertexCountLabel.setText(Integer.toString(result.vertexCount()));
+        }
+        if (triangleCountLabel != null) {
+          triangleCountLabel.setText(Integer.toString(result.triangleCount()));
+        }
+        currentTriangles = result.triangles();
+        applyTriangleOverlay();
+      }
+
+      @Override
+      public void onFailure(Throwable error) {
+        if (recomputeIndicator != null) {
+          recomputeIndicator.setManaged(false);
+          recomputeIndicator.setVisible(false);
+        }
+        setStatus("Triangle update failed: " + error.getMessage());
+      }
+    });
+    triangleService.request();
+  }
+
 
   private void handleCanvasClick(MouseEvent event) {
     if (event.getButton() != MouseButton.PRIMARY) {
@@ -338,6 +415,19 @@ public final class MainViewController {
     undoStack.push(command);
     redoStack.clear();
     updateUndoRedoButtons();
+  }
+
+  private void applyTriangleOverlay() {
+    if (segmentCanvas == null) {
+      return;
+    }
+    boolean highlight = highlightToggle != null && highlightToggle.isSelected();
+    if (highlight) {
+      segmentCanvas.updateTriangles(currentTriangles);
+      segmentCanvas.setTriangleOverlayVisible(true);
+    } else {
+      segmentCanvas.setTriangleOverlayVisible(false);
+    }
   }
 
   private void undo() {

@@ -2,12 +2,17 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ProgressIndicator?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
@@ -29,8 +34,29 @@
     <StackPane fx:id="canvasPane" prefHeight="400.0" prefWidth="600.0" />
   </center>
   <right>
-    <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="8.0" prefWidth="280.0">
+    <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="10.0" prefWidth="280.0">
       <children>
+        <Label text="Summary" styleClass="section-title" />
+        <GridPane hgap="6.0" vgap="4.0">
+          <columnConstraints>
+            <ColumnConstraints hgrow="NEVER" percentWidth="45.0" />
+            <ColumnConstraints hgrow="ALWAYS" percentWidth="55.0" />
+          </columnConstraints>
+          <children>
+            <Label text="Segments:" GridPane.rowIndex="0" />
+            <Label fx:id="segmentCountLabel" text="0" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+            <Label text="Vertices:" GridPane.rowIndex="1" />
+            <Label fx:id="vertexCountLabel" text="0" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+            <Label text="Triangles:" GridPane.rowIndex="2" />
+            <Label fx:id="triangleCountLabel" text="0" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+          </children>
+        </GridPane>
+        <HBox alignment="CENTER_LEFT" spacing="8.0">
+          <children>
+            <CheckBox fx:id="highlightToggle" text="Highlight triangles" />
+            <ProgressIndicator fx:id="recomputeIndicator" managed="false" visible="false" prefHeight="20.0" prefWidth="20.0" />
+          </children>
+        </HBox>
         <Label text="Segments" styleClass="section-title" />
         <ListView fx:id="segmentListView" prefWidth="260.0" />
       </children>

@@ -8,138 +8,193 @@ import java.util.Map;
 import javafx.geometry.Point2D;
 
 public final class VertexLabelCalculator {
-  private final double labelOffset;
+  private static final int ANGLE_SAMPLES = 72;
+  private static final double MIN_ACCEPTABLE_ANGLE_DEGREES = 32.0;
+  private static final double MIN_CLEARANCE_PIXELS = 14.0;
+  private static final double MIN_SIN = Math.sin(Math.toRadians(6));
+  private static final double STEP_PIXELS = 6.0;
+  private static final double MAX_OFFSET_PIXELS = 140.0;
+  private static final double ON_SEGMENT_TOLERANCE = 1e-3;
 
-  public VertexLabelCalculator(double labelOffset) {
-    this.labelOffset = labelOffset;
+  private final double baseOffset;
+
+  public VertexLabelCalculator(double baseOffset) {
+    this.baseOffset = baseOffset;
   }
 
   public List<SegmentCanvas.VertexLabel> calculate(
       List<Segment> segments,
-      Map<Segment, SegmentMetadata> segmentMetadata,
-      VertexRegistry vertexRegistry) {
-    Map<String, Point2D> normalSums = new HashMap<>();
-    Map<String, List<Point2D>> incidentDirections = new HashMap<>();
-    for (Segment segment : segments) {
-      SegmentMetadata metadata = segmentMetadata.get(segment);
-      if (metadata == null) {
-        continue;
-      }
-      VertexRegistry.Vertex start = vertexRegistry.get(metadata.startVertexId());
-      VertexRegistry.Vertex end = vertexRegistry.get(metadata.endVertexId());
-      if (start == null || end == null) {
-        continue;
-      }
-      Point2D startPoint = start.point();
-      Point2D endPoint = end.point();
-      Point2D startVec = endPoint.subtract(startPoint);
-      if (startVec.magnitude() <= 1e-6) {
-        continue;
-      }
-      Point2D startDir = startVec.normalize();
-      addDirection(incidentDirections, start.id(), startDir);
-      Point2D startNormal = new Point2D(-startDir.getY(), startDir.getX());
-      accumulateNormal(normalSums, start.id(), startNormal);
-
-      Point2D endVec = startPoint.subtract(endPoint);
-      Point2D endDir = endVec.normalize();
-      addDirection(incidentDirections, end.id(), endDir);
-      Point2D endNormal = new Point2D(-endDir.getY(), endDir.getX());
-      accumulateNormal(normalSums, end.id(), endNormal);
-    }
-
+      Map<Segment, SegmentMetadata> metadata,
+      VertexRegistry registry) {
+    Map<String, List<IncidentEdge>> incidentEdges = collectIncidentEdges(segments, metadata, registry);
     List<SegmentCanvas.VertexLabel> labels = new ArrayList<>();
-    for (VertexRegistry.Vertex vertex : vertexRegistry.vertices()) {
-      Point2D direction =
-          chooseDirection(normalSums.get(vertex.id()), incidentDirections.get(vertex.id()));
-      Point2D offset = direction.multiply(labelOffset);
+    for (VertexRegistry.Vertex vertex : registry.vertices()) {
+      List<IncidentEdge> edges = incidentEdges.get(vertex.id());
+      Placement placement = choosePlacement(vertex.point(), edges);
+      Point2D offset = placement.direction().multiply(placement.distance());
       labels.add(new SegmentCanvas.VertexLabel(vertex.id(), vertex.x(), vertex.y(), offset.getX(), offset.getY()));
     }
     return labels;
   }
 
-  private void addDirection(Map<String, List<Point2D>> map, String vertexId, Point2D direction) {
-    if (direction.magnitude() <= 1e-6) {
-      return;
-    }
-    Point2D normalized = direction.normalize();
-    List<Point2D> list = map.computeIfAbsent(vertexId, k -> new ArrayList<>());
-    list.add(normalized);
-    list.add(normalized.multiply(-1));
-  }
-
-  private void accumulateNormal(Map<String, Point2D> normals, String vertexId, Point2D normal) {
-    Point2D existing = normals.get(vertexId);
-    if (existing == null) {
-      normals.put(vertexId, normal);
-    } else {
-      normals.put(vertexId, new Point2D(existing.getX() + normal.getX(), existing.getY() + normal.getY()));
-    }
-  }
-
-  private Point2D chooseDirection(Point2D sum, List<Point2D> incidentDirections) {
-    if (sum != null && sum.magnitude() > 1e-4) {
-      return sum.normalize();
-    }
-    if (incidentDirections == null || incidentDirections.isEmpty()) {
-      return new Point2D(0, -1);
-    }
-    return findGapDirection(incidentDirections);
-  }
-
-  private Point2D findGapDirection(List<Point2D> incidentDirections) {
-    double twoPi = Math.PI * 2d;
-    double angleTolerance = Math.toRadians(14);
-    List<Double> angles = new ArrayList<>();
-    for (Point2D direction : incidentDirections) {
-      double theta = Math.atan2(direction.getY(), direction.getX());
-      if (theta < 0) {
-        theta += twoPi;
+  private Map<String, List<IncidentEdge>> collectIncidentEdges(
+      List<Segment> segments,
+      Map<Segment, SegmentMetadata> metadata,
+      VertexRegistry registry) {
+    Map<String, List<IncidentEdge>> incident = new HashMap<>();
+    
+    for (Segment segment : segments) {
+      SegmentMetadata data = metadata.get(segment);
+      if (data == null) {
+        continue;
       }
-      angles.add(theta);
-    }
-    if (angles.isEmpty()) {
-      return new Point2D(0, -1);
-    }
-    angles.sort(Double::compare);
-    double bestGap = -1d;
-    double bestAngle = 0d;
-    int n = angles.size();
-    for (int i = 0; i < n; i++) {
-      double start = angles.get(i);
-      double end = (i == n - 1) ? angles.get(0) + twoPi : angles.get(i + 1);
-      double gap = end - start;
-      double usableGap = gap - (2d * angleTolerance);
-      if (usableGap > bestGap) {
-        bestGap = usableGap;
-        double candidate = start + angleTolerance + Math.max(usableGap, 0d) / 2d;
-        bestAngle = candidate;
+      VertexRegistry.Vertex start = registry.get(data.startVertexId());
+      VertexRegistry.Vertex end = registry.get(data.endVertexId());
+      if (start == null || end == null) {
+        continue;
       }
+      addEdge(incident, start, end);
+      addEdge(incident, end, start);
     }
-    if (bestGap > 1e-6) {
-      return new Point2D(Math.cos(bestAngle), Math.sin(bestAngle));
-    }
-    double bestScore = Double.POSITIVE_INFINITY;
-    double resolvedAngle = 0d;
-    int samples = 64;
-    for (int i = 0; i < samples; i++) {
-      double angle = (twoPi * i) / samples;
-      double cos = Math.cos(angle);
-      double sin = Math.sin(angle);
-      Point2D candidate = new Point2D(cos, sin);
-      double worstAlignment = 0d;
-      for (Point2D dir : incidentDirections) {
-        double alignment = Math.abs(candidate.dotProduct(dir));
-        if (alignment > worstAlignment) {
-          worstAlignment = alignment;
+
+    for (VertexRegistry.Vertex vertex : registry.vertices()) {
+      for (Segment segment : segments) {
+        if (segmentContainsPoint(segment, vertex.point())) {
+          Point2D a = new Point2D(segment.x1(), segment.y1());
+          Point2D b = new Point2D(segment.x2(), segment.y2());
+          addEdge(incident, vertex, a);
+          addEdge(incident, vertex, b);
         }
       }
-      if (worstAlignment + 1e-6 < bestScore
-          || (Math.abs(worstAlignment - bestScore) <= 1e-6 && sin < Math.sin(resolvedAngle))) {
-        bestScore = worstAlignment;
-        resolvedAngle = angle;
+    }
+    return incident;
+  }
+
+  private void addEdge(Map<String, List<IncidentEdge>> map, VertexRegistry.Vertex origin, VertexRegistry.Vertex other) {
+    addEdge(map, origin, other.point());
+  }
+
+  private void addEdge(Map<String, List<IncidentEdge>> map, VertexRegistry.Vertex origin, Point2D otherPoint) {
+    Point2D vector = otherPoint.subtract(origin.point());
+    if (vector.magnitude() <= 1e-6) {
+      return;
+    }
+    Point2D direction = vector.normalize();
+    map.computeIfAbsent(origin.id(), k -> new ArrayList<>())
+        .add(new IncidentEdge(origin.point(), otherPoint, direction));
+  }
+
+  private boolean segmentContainsPoint(Segment segment, Point2D point) {
+    Point2D a = new Point2D(segment.x1(), segment.y1());
+    Point2D b = new Point2D(segment.x2(), segment.y2());
+    double distance = distancePointToSegment(point, a, b);
+    if (distance > ON_SEGMENT_TOLERANCE) {
+      return false;
+    }
+    double minX = Math.min(a.getX(), b.getX()) - ON_SEGMENT_TOLERANCE;
+    double maxX = Math.max(a.getX(), b.getX()) + ON_SEGMENT_TOLERANCE;
+    double minY = Math.min(a.getY(), b.getY()) - ON_SEGMENT_TOLERANCE;
+    double maxY = Math.max(a.getY(), b.getY()) + ON_SEGMENT_TOLERANCE;
+    return point.getX() >= minX && point.getX() <= maxX && point.getY() >= minY && point.getY() <= maxY;
+  }
+
+  private Placement choosePlacement(Point2D origin, List<IncidentEdge> edges) {
+    if (edges == null || edges.isEmpty()) {
+      return new Placement(new Point2D(0, -1), baseOffset);
+    }
+    List<Point2D> blocked = new ArrayList<>(edges.size());
+    for (IncidentEdge edge : edges) {
+      blocked.add(edge.direction());
+    }
+
+    double minAngleRad = Math.toRadians(MIN_ACCEPTABLE_ANGLE_DEGREES);
+    double bestScore = Double.NEGATIVE_INFINITY;
+    double bestAngle = 0d;
+    boolean found = false;
+
+    for (int i = 0; i < ANGLE_SAMPLES; i++) {
+      double angle = (Math.PI * 2d * i) / ANGLE_SAMPLES;
+      Point2D candidate = directionFromAngle(angle);
+      double clearance = minimumAngle(candidate, blocked);
+      if (clearance >= minAngleRad && clearance > bestScore) {
+        bestScore = clearance;
+        bestAngle = angle;
+        found = true;
       }
     }
-    return new Point2D(Math.cos(resolvedAngle), Math.sin(resolvedAngle));
+
+    if (!found) {
+      bestScore = Double.NEGATIVE_INFINITY;
+      for (int i = 0; i < ANGLE_SAMPLES; i++) {
+        double angle = (Math.PI * 2d * i) / ANGLE_SAMPLES;
+        Point2D candidate = directionFromAngle(angle);
+        double clearance = minimumAngle(candidate, blocked);
+        if (clearance > bestScore
+            || (Math.abs(clearance - bestScore) <= 1e-6 && candidate.getY() < Math.sin(bestAngle))) {
+          bestScore = clearance;
+          bestAngle = angle;
+        }
+      }
+    }
+
+    Point2D direction = directionFromAngle(bestAngle);
+    double distance = computeOffsetDistance(origin, direction, edges);
+    return new Placement(direction, distance);
   }
+
+  private double minimumAngle(Point2D direction, List<Point2D> blocked) {
+    double min = Double.POSITIVE_INFINITY;
+    for (Point2D incident : blocked) {
+      double dot = Math.max(-1d, Math.min(1d, direction.dotProduct(incident)));
+      double diff = Math.acos(Math.abs(dot));
+      if (diff < min) {
+        min = diff;
+      }
+    }
+    return min;
+  }
+
+  private double computeOffsetDistance(Point2D origin, Point2D direction, List<IncidentEdge> edges) {
+    double distance = baseOffset;
+    double max = Math.max(baseOffset, MAX_OFFSET_PIXELS);
+    while (distance <= max) {
+      Point2D candidate = origin.add(direction.multiply(distance));
+      if (clearOfEdges(candidate, edges)) {
+        return distance;
+      }
+      distance += STEP_PIXELS;
+    }
+    return MAX_OFFSET_PIXELS;
+  }
+
+  private boolean clearOfEdges(Point2D candidate, List<IncidentEdge> edges) {
+    for (IncidentEdge edge : edges) {
+      double dist = distancePointToSegment(candidate, edge.origin(), edge.other());
+      if (dist < MIN_CLEARANCE_PIXELS) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private double distancePointToSegment(Point2D point, Point2D a, Point2D b) {
+    double dx = b.getX() - a.getX();
+    double dy = b.getY() - a.getY();
+    if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
+      return point.distance(a);
+    }
+    double t = ((point.getX() - a.getX()) * dx + (point.getY() - a.getY()) * dy) / (dx * dx + dy * dy);
+    t = Math.max(0d, Math.min(1d, t));
+    double projX = a.getX() + t * dx;
+    double projY = a.getY() + t * dy;
+    return Math.hypot(point.getX() - projX, point.getY() - projY);
+  }
+
+  private Point2D directionFromAngle(double angle) {
+    return new Point2D(Math.cos(angle), Math.sin(angle));
+  }
+
+  private record IncidentEdge(Point2D origin, Point2D other, Point2D direction) {}
+
+  private record Placement(Point2D direction, double distance) {}
 }

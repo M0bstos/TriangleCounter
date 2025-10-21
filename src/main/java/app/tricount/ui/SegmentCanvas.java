@@ -3,10 +3,12 @@ package app.tricount.ui;
 import app.tricount.geometry.Segment;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
+import javafx.geometry.Point2D;
 import javafx.geometry.VPos;
 import javafx.scene.Group;
 import javafx.scene.canvas.Canvas;
@@ -29,6 +31,7 @@ public final class SegmentCanvas extends Pane {
   private final ObservableList<Segment> segments;
   private final Canvas gridCanvas = new Canvas();
   private final Group segmentGroup = new Group();
+  private final Group triangleGroup = new Group();
   private final Group vertexGroup = new Group();
   private final Map<Segment, Line> lineBySegment = new HashMap<>();
   private final Map<String, Text> vertexLabels = new HashMap<>();
@@ -50,8 +53,9 @@ public final class SegmentCanvas extends Pane {
     snapIndicator.setStroke(Color.web("#ff9800"));
     snapIndicator.setMouseTransparent(true);
     segmentGroup.setMouseTransparent(true);
+    triangleGroup.setMouseTransparent(true);
     vertexGroup.setMouseTransparent(true);
-    getChildren().addAll(gridCanvas, segmentGroup, vertexGroup, previewLine, snapIndicator);
+    getChildren().addAll(gridCanvas, segmentGroup, triangleGroup, vertexGroup, previewLine, snapIndicator);
     previewLine.setVisible(false);
     segments.addListener(this::handleChange);
     for (Segment segment : segments) {
@@ -192,5 +196,35 @@ public final class SegmentCanvas extends Pane {
       gc.setStroke(j % majorFrequency == 0 ? majorColor : minorColor);
       gc.strokeLine(0, y, width, y);
     }
+  }
+
+  public void updateTriangles(List<List<Point2D>> triangles) {
+    triangleGroup.getChildren().clear();
+    if (triangles == null || triangles.isEmpty()) {
+      return;
+    }
+    int size = triangles.size();
+    for (int i = 0; i < size; i++) {
+      List<Point2D> triangle = triangles.get(i);
+      if (triangle.size() < 3) {
+        continue;
+      }
+      javafx.scene.shape.Polygon polygon = new javafx.scene.shape.Polygon();
+      for (Point2D point : triangle) {
+        polygon.getPoints().addAll(point.getX(), point.getY());
+      }
+      double hue = (i * 280.0 / Math.max(1, size)) % 360;
+      Color base = Color.hsb(hue, 0.6, 0.85);
+      polygon.setFill(new Color(base.getRed(), base.getGreen(), base.getBlue(), 0.3));
+      polygon.setStroke(base.deriveColor(0d, 1d, 0.8, 1d));
+      polygon.setStrokeWidth(1.2);
+      polygon.setMouseTransparent(true);
+      triangleGroup.getChildren().add(polygon);
+    }
+  }
+
+  public void setTriangleOverlayVisible(boolean visible) {
+    triangleGroup.setVisible(visible);
+    triangleGroup.setManaged(visible);
   }
 }
