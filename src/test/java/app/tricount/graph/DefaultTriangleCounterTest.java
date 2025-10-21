@@ -14,7 +14,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void simpleOuterTriangle() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("ab", 0, 0, 10, 0),
         segment("bc", 10, 0, 5, 8.66),
@@ -25,7 +25,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void outerTriangleWithMedian() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("ab", 0, 0, 10, 0),
         segment("bc", 10, 0, 5, 8.66),
@@ -37,7 +37,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void threeFanTriangles() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("oa", 0, 0, 1, 0),
         segment("ab", 1, 0, 0, 1),
@@ -52,7 +52,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void gridHasNoTriangles() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("h1", 0, 0, 2, 0),
         segment("h2", 0, 1, 2, 1),
@@ -65,7 +65,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void splitSideContractsToOneTriangle() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       segments.add(segment("base" + i, i, 0, i + 1, 0));
@@ -78,7 +78,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void crossingLinesHaveNoTriangle() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("d1", 0, 0, 1, 1),
         segment("d2", 0, 1, 1, 0));
@@ -88,7 +88,7 @@ public final class DefaultTriangleCounterTest {
 
   @Test
   void outerTrianglePersistsWithAttachmentPoint() {
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     List<Segment> segments = List.of(
         segment("ab", 0, 0, 10, 0),
         segment("bc", 10, 0, 5, 8.66),

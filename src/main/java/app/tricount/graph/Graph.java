@@ -51,18 +51,21 @@ public final class Graph {
   private final Map<Long, Integer> edgeMultiplicity;
   private final double coordinateTolerance;
   private final List<E> segmentEdges;
+  private final List<List<Integer>> segmentVertexPaths;
 
   public Graph(
       List<V> vertices,
       List<E> edges,
       Map<Long, Integer> edgeMultiplicity,
       double coordinateTolerance,
-      List<E> segmentEdges) {
+      List<E> segmentEdges,
+      List<List<Integer>> segmentVertexPaths) {
     this.vertices = List.copyOf(vertices);
     this.edges = List.copyOf(edges);
     this.edgeMultiplicity = Map.copyOf(edgeMultiplicity);
     this.coordinateTolerance = coordinateTolerance;
     this.segmentEdges = List.copyOf(segmentEdges);
+    this.segmentVertexPaths = List.copyOf(segmentVertexPaths);
   }
 
   public List<V> vertices() {
@@ -83,5 +86,9 @@ public final class Graph {
 
   public List<E> segmentEdges() {
     return segmentEdges;
+  }
+
+  public List<List<Integer>> segmentVertexPaths() {
+    return segmentVertexPaths;
   }
 }

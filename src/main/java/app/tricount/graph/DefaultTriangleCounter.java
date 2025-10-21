@@ -103,7 +103,7 @@ public final class DefaultTriangleCounter implements TriangleCounter {
       segmentEdgeMap.putIfAbsent(key, new Graph.E(nu, nv));
     }
     List<Graph.E> segmentEdges = new ArrayList<>(segmentEdgeMap.values());
-    return new Graph(vertices, edges, multiplicity, graph.coordinateTolerance(), segmentEdges);
+    return new Graph(vertices, edges, multiplicity, graph.coordinateTolerance(), segmentEdges, List.of());
   }
 
   @Override

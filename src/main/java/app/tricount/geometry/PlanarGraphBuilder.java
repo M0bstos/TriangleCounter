@@ -14,11 +14,13 @@ import org.locationtech.jts.noding.NodedSegmentString;
 public final class PlanarGraphBuilder {
   public Graph build(List<Segment> segments, double coordTol) {
     if (segments.isEmpty()) {
-      return new Graph(List.of(), List.of(), Map.of(), coordTol, List.of());
+      return new Graph(List.of(), List.of(), Map.of(), coordTol, List.of(), List.of());
     }
     double tolerance = coordTol > 0 ? coordTol : 1e-9;
     List<NodedSegmentString> segmentStrings = new ArrayList<>();
     List<Coordinate[]> originalEndpoints = new ArrayList<>();
+    Map<String, SegmentCollector> collectors = new HashMap<>();
+    List<String> segmentOrder = new ArrayList<>();
     for (Segment segment : segments) {
       if (isZeroLength(segment, tolerance)) {
         continue;
@@ -29,9 +31,11 @@ public final class PlanarGraphBuilder {
       };
       segmentStrings.add(new NodedSegmentString(coords, segment.id()));
       originalEndpoints.add(coords);
+      collectors.put(segment.id(), new SegmentCollector(segment));
+      segmentOrder.add(segment.id());
     }
     if (segmentStrings.isEmpty()) {
-      return new Graph(List.of(), List.of(), Map.of(), tolerance, List.of());
+      return new Graph(List.of(), List.of(), Map.of(), tolerance, List.of(), List.of());
     }
     MCIndexNoder noder = new MCIndexNoder(new IntersectionAdder(new RobustLineIntersector()));
     noder.computeNodes(segmentStrings);
@@ -42,6 +46,8 @@ public final class PlanarGraphBuilder {
     Map<Long, Graph.E> edgesByKey = new HashMap<>();
     Map<Long, Integer> multiplicity = new HashMap<>();
     for (NodedSegmentString string : noded) {
+      String segmentId = (String) string.getData();
+      SegmentCollector collector = collectors.get(segmentId);
       Coordinate[] coords = string.getCoordinates();
       for (int i = 1; i < coords.length; i++) {
         Coordinate a = coords[i - 1];
@@ -59,6 +65,10 @@ public final class PlanarGraphBuilder {
         long key = edgeKey(u, v);
         Graph.E edge = edgesByKey.computeIfAbsent(key, k -> new Graph.E(u, v));
         multiplicity.merge(key, 1, Integer::sum);
+        if (collector != null) {
+          collector.addVertex(va, a);
+          collector.addVertex(vb, b);
+        }
       }
     }
     List<Graph.E> edges = new ArrayList<>(edgesByKey.values());
@@ -76,7 +86,16 @@ public final class PlanarGraphBuilder {
       }
       segmentEdges.add(new Graph.E(va, vb));
     }
-    return new Graph(vertices, edges, multiplicity, tolerance, segmentEdges);
+    List<List<Integer>> segmentPaths = new ArrayList<>();
+    for (String id : segmentOrder) {
+      SegmentCollector collector = collectors.get(id);
+      if (collector != null) {
+        segmentPaths.add(collector.build());
+      } else {
+        segmentPaths.add(List.of());
+      }
+    }
+    return new Graph(vertices, edges, multiplicity, tolerance, segmentEdges, segmentPaths);
   }
 
   private boolean isZeroLength(Segment segment, double tol) {
@@ -132,5 +151,45 @@ public final class PlanarGraphBuilder {
       }
     }
     return resolveVertex(coordinate, tol, buckets, vertices);
+  }
+
+  private static final class SegmentCollector {
+    private final Segment segment;
+    private final Map<Integer, Double> params = new HashMap<>();
+
+    SegmentCollector(Segment segment) {
+      this.segment = segment;
+    }
+
+    void addVertex(int vertexId, Coordinate coordinate) {
+      double t = parameter(coordinate);
+      params.merge(vertexId, t, Math::min);
+    }
+
+    List<Integer> build() {
+      return params.entrySet().stream()
+          .sorted(Map.Entry.comparingByValue())
+          .map(Map.Entry::getKey)
+          .toList();
+    }
+
+    private double parameter(Coordinate coordinate) {
+      double dx = segment.x2() - segment.x1();
+      double dy = segment.y2() - segment.y1();
+      double len2 = dx * dx + dy * dy;
+      if (len2 <= 0) {
+        return 0d;
+      }
+      double px = coordinate.getX() - segment.x1();
+      double py = coordinate.getY() - segment.y1();
+      double t = (px * dx + py * dy) / len2;
+      if (t < 0d) {
+        return 0d;
+      }
+      if (t > 1d) {
+        return 1d;
+      }
+      return t;
+    }
   }
 }

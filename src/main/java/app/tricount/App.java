@@ -1,8 +1,8 @@
 package app.tricount;
 
-import app.tricount.graph.DefaultTriangleCounter;
 import app.tricount.graph.Graph;
 import app.tricount.graph.TriangleCounter;
+import app.tricount.graph.VisualTriangleCounter;
 import app.tricount.io.ProjectDefinition;
 import app.tricount.io.ProjectIO;
 import java.nio.file.Path;
@@ -21,7 +21,7 @@ public final class App {
     double angleTol = args.length > 1 ? Double.parseDouble(args[1]) : 1e-6;
     ProjectIO io = new ProjectIO();
     ProjectDefinition project = io.load(input);
-    TriangleCounter counter = new DefaultTriangleCounter();
+    TriangleCounter counter = new VisualTriangleCounter();
     Graph planar = counter.buildPlanarGraph(project.segments(), project.tolerance());
     Graph contracted = counter.contractStraightVertices(planar, angleTol);
     List<int[]> triangles = counter.triangles(contracted);
