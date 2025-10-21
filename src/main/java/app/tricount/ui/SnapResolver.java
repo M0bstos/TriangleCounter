@@ -9,7 +9,6 @@ public final class SnapResolver {
   private final double segmentSnapTolerance;
   private final double gridSpacing;
   private final double gridSnapTolerance;
-  private final double gridDistancePenalty;
   private final double segmentDirectionBonus;
   private final double segmentAlignmentThreshold;
 
@@ -18,14 +17,12 @@ public final class SnapResolver {
       double segmentSnapTolerance,
       double gridSpacing,
       double gridSnapTolerance,
-      double gridDistancePenalty,
       double segmentDirectionBonus,
       double segmentAlignmentThreshold) {
     this.vertexSnapTolerance = vertexSnapTolerance;
     this.segmentSnapTolerance = segmentSnapTolerance;
     this.gridSpacing = gridSpacing;
     this.gridSnapTolerance = gridSnapTolerance;
-    this.gridDistancePenalty = gridDistancePenalty;
     this.segmentDirectionBonus = segmentDirectionBonus;
     this.segmentAlignmentThreshold = segmentAlignmentThreshold;
   }
@@ -36,9 +33,8 @@ public final class SnapResolver {
       Point2D movementDir,
       List<Point2D> vertexPoints,
       List<Segment> segments) {
-    SnapResult best = null;
-    double bestScore = Double.POSITIVE_INFINITY;
-
+    Point2D bestVertex = null;
+    double bestVertexScore = Double.POSITIVE_INFINITY;
     if (vertexPoints != null) {
       for (Point2D vertex : vertexPoints) {
         if (anchorPoint != null && vertex.distance(anchorPoint) < 1e-6) {
@@ -48,18 +44,18 @@ public final class SnapResolver {
         if (distance > vertexSnapTolerance) {
           continue;
         }
-        double base = 0.0;
+        double score = distance;
         if (anchorPoint != null && vertex.distance(anchorPoint) <= vertexSnapTolerance * 0.5) {
-          base -= 5.0;
+          score -= 1.0;
         }
-        double score = base + distance;
-        if (score < bestScore) {
-          best = new SnapResult(vertex, SegmentCanvas.SnapType.VERTEX);
-          bestScore = score;
+        if (score < bestVertexScore) {
+          bestVertexScore = score;
+          bestVertex = vertex;
         }
       }
     }
-
+    Point2D bestProjection = null;
+    double bestSegmentScore = Double.POSITIVE_INFINITY;
     if (segments != null) {
       for (Segment segment : segments) {
         Point2D projection = projectOntoSegment(segment, cursor);
@@ -70,36 +66,45 @@ public final class SnapResolver {
         if (distance > segmentSnapTolerance) {
           continue;
         }
-        double base = 10.0;
+        Point2D startPoint = new Point2D(segment.x1(), segment.y1());
+        Point2D endPoint = new Point2D(segment.x2(), segment.y2());
+        double startDist = projection.distance(startPoint);
+        double endDist = projection.distance(endPoint);
+        if (startDist <= vertexSnapTolerance && startDist < bestVertexScore) {
+          bestVertexScore = startDist;
+          bestVertex = startPoint;
+        }
+        if (endDist <= vertexSnapTolerance && endDist < bestVertexScore) {
+          bestVertexScore = endDist;
+          bestVertex = endPoint;
+        }
+        double score = distance;
         if (anchorPoint != null && movementDir != null) {
           Point2D candidateVec = projection.subtract(anchorPoint);
           if (candidateVec.magnitude() > 1e-6) {
             Point2D candidateDir = candidateVec.normalize();
             double dot = movementDir.dotProduct(candidateDir);
             if (dot >= segmentAlignmentThreshold) {
-              base -= segmentDirectionBonus;
+              score -= segmentDirectionBonus;
             }
           }
         }
-        double score = base + distance;
-        if (score < bestScore) {
-          best = new SnapResult(projection, SegmentCanvas.SnapType.SEGMENT);
-          bestScore = score;
+        if (score < 0) {
+          score = 0;
+        }
+        if (score < bestSegmentScore) {
+          bestSegmentScore = score;
+          bestProjection = projection;
         }
       }
     }
-
-    Point2D gridSnap = snapToGrid(cursor, false);
-    if (gridSnap != null) {
-      double distance = gridSnap.distance(cursor);
-      double score = 20.0 + gridDistancePenalty + distance;
-      if (score < bestScore) {
-        best = new SnapResult(gridSnap, SegmentCanvas.SnapType.GRID);
-        bestScore = score;
-      }
+    if (bestVertex != null) {
+      return new SnapResult(bestVertex, SegmentCanvas.SnapType.VERTEX);
     }
-
-    return best;
+    if (bestProjection != null) {
+      return new SnapResult(bestProjection, SegmentCanvas.SnapType.SEGMENT);
+    }
+    return null;
   }
 
   public Point2D snapToGrid(Point2D point, boolean force) {
@@ -124,8 +129,11 @@ public final class SnapResolver {
       return null;
     }
     double t = ((point.getX() - x1) * dx + (point.getY() - y1) * dy) / lengthSq;
-    if (t <= 0 || t >= 1) {
-      return null;
+    if (t < 0) {
+      return new Point2D(x1, y1);
+    }
+    if (t > 1) {
+      return new Point2D(x2, y2);
     }
     double projX = x1 + t * dx;
     double projY = y1 + t * dy;

@@ -68,6 +68,12 @@ public final class VertexRegistry {
     return result;
   }
 
+  public void clear() {
+    vertices.clear();
+    byId.clear();
+    counter = 0;
+  }
+
   private Vertex find(Point2D point) {
     for (Vertex vertex : vertices) {
       if (vertex.point().distance(point) <= mergeTolerance) {

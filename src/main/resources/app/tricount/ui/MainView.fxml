@@ -18,6 +18,7 @@
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+    fx:id="root"
     fx:controller="app.tricount.ui.MainViewController">
   <top>
     <ToolBar fx:id="toolbar">
@@ -37,7 +38,7 @@
     <VBox fx:id="sidePanel" alignment="TOP_LEFT" spacing="10.0" prefWidth="280.0">
       <children>
         <Label text="Summary" styleClass="section-title" />
-        <GridPane hgap="6.0" vgap="4.0">
+        <GridPane fx:id="summaryGrid" hgap="6.0" vgap="4.0">
           <columnConstraints>
             <ColumnConstraints hgrow="NEVER" percentWidth="45.0" />
             <ColumnConstraints hgrow="ALWAYS" percentWidth="55.0" />

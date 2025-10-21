@@ -1,9 +1,9 @@
 package app.tricount.ui;
 
 import app.tricount.geometry.Segment;
-import app.tricount.graph.DefaultTriangleCounter;
 import app.tricount.graph.Graph;
 import app.tricount.graph.TriangleCounter;
+import app.tricount.graph.VisualTriangleCounter;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -54,8 +54,8 @@ public final class TriangleCounterService {
     }
   }
 
-  private static final double DEFAULT_COORD_TOL = 1e-6;
-  private static final double DEFAULT_ANGLE_TOL = 1e-6;
+  private volatile double coordinateTolerance = 1e-6;
+  private volatile double angleTolerance = 1e-6;
 
   private final ObservableList<Segment> segments;
   private final TriangleCounter counter;
@@ -73,7 +73,7 @@ public final class TriangleCounterService {
   private final ListChangeListener<Segment> segmentListener = change -> request();
 
   public TriangleCounterService(ObservableList<Segment> segments) {
-    this(segments, new DefaultTriangleCounter());
+    this(segments, new VisualTriangleCounter());
   }
 
   public TriangleCounterService(ObservableList<Segment> segments, TriangleCounter counter) {
@@ -100,6 +100,16 @@ public final class TriangleCounterService {
     executor.shutdownNow();
   }
 
+  public void setCoordinateTolerance(double tolerance) {
+    coordinateTolerance = tolerance;
+    request();
+  }
+
+  public void setAngleTolerance(double tolerance) {
+    angleTolerance = tolerance;
+    request();
+  }
+
   private void submit() {
     final long runId = ++sequence;
     List<Segment> snapshot = List.copyOf(segments);
@@ -122,8 +132,8 @@ public final class TriangleCounterService {
       return new Result(0, 0, 0, List.of());
     }
     dumpSnapshotIfRequested(snapshot);
-    Graph planar = counter.buildPlanarGraph(snapshot, DEFAULT_COORD_TOL);
-    Graph contracted = counter.contractStraightVertices(planar, DEFAULT_ANGLE_TOL);
+    Graph planar = counter.buildPlanarGraph(snapshot, coordinateTolerance);
+    Graph contracted = counter.contractStraightVertices(planar, angleTolerance);
     List<int[]> triangles = counter.triangles(contracted);
     List<List<Point2D>> points = new ArrayList<>(triangles.size());
     for (int[] tri : triangles) {
@@ -143,7 +153,7 @@ public final class TriangleCounterService {
     }
     StringBuilder sb = new StringBuilder();
     sb.append("{\n");
-    sb.append("  \"tolerance\": ").append(String.format(Locale.US, "%.9f", DEFAULT_COORD_TOL)).append(",\n");
+    sb.append("  \"tolerance\": ").append(String.format(Locale.US, "%.9f", coordinateTolerance)).append(",\n");
     sb.append("  \"segments\": [\n");
     for (int i = 0; i < snapshot.size(); i++) {
       Segment segment = snapshot.get(i);

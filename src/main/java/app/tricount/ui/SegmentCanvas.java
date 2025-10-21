@@ -83,14 +83,17 @@ public final class SegmentCanvas extends Pane {
       case VERTEX -> {
         snapIndicator.setFill(Color.rgb(255, 152, 0, 0.25));
         snapIndicator.setStroke(Color.web("#ff9800"));
+        snapIndicator.setRadius(5);
       }
       case SEGMENT -> {
         snapIndicator.setFill(Color.rgb(76, 175, 80, 0.2));
         snapIndicator.setStroke(Color.web("#4caf50"));
+        snapIndicator.setRadius(7);
       }
       case GRID -> {
         snapIndicator.setFill(Color.rgb(0, 188, 212, 0.2));
         snapIndicator.setStroke(Color.web("#00acc1"));
+        snapIndicator.setRadius(9);
       }
     }
     snapIndicator.setCenterX(x);

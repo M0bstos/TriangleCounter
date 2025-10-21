@@ -1,6 +1,9 @@
 package app.tricount.ui;
 
 import app.tricount.geometry.Segment;
+import app.tricount.io.ProjectIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -28,19 +31,21 @@ import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
 
 public final class MainViewController {
   private static final double MIN_SEGMENT_LENGTH = 2.0;
   private static final double SNAP_TOLERANCE_PX = 10.0;
   private static final double DELETE_HIT_TOLERANCE = 6.0;
-  private static final double SEGMENT_SNAP_TOLERANCE = 7.0;
+  private static final double SEGMENT_SNAP_TOLERANCE = 10.0;
   private static final double GRID_SPACING = 20.0;
   private static final double GRID_SNAP_TOLERANCE = 8.0;
-  private static final double GRID_DISTANCE_PENALTY = 2.0;
   private static final double SEGMENT_DIRECTION_BONUS = 4.0;
   private static final double SEGMENT_ALIGNMENT_THRESHOLD = Math.cos(Math.toRadians(15));
   private static final double VERTEX_MERGE_TOLERANCE = 1e-4;
   private static final double VERTEX_LABEL_OFFSET = 22.0;
+  private static final double TRIANGLE_COORD_TOLERANCE = 1e-6;
 
   @FXML
   private BorderPane root;
@@ -67,6 +72,9 @@ public final class MainViewController {
   private Button redoButton;
 
   @FXML
+  private Button exportButton;
+
+  @FXML
   private Label statusLabel;
 
   @FXML
@@ -91,19 +99,22 @@ public final class MainViewController {
   private final ObservableList<String> segmentItems = FXCollections.observableArrayList();
   private final VertexRegistry vertexRegistry = new VertexRegistry(VERTEX_MERGE_TOLERANCE);
   private final Map<Segment, SegmentMetadata> segmentMetadata = new HashMap<>();
+  private final VertexLabelCalculator vertexLabelCalculator = new VertexLabelCalculator(VERTEX_LABEL_OFFSET);
+  private final List<Point2D> snapVertices = new ArrayList<>();
+  private final Deque<Command> undoStack = new ArrayDeque<>();
+  private final Deque<Command> redoStack = new ArrayDeque<>();
+  private final ProjectIO projectIO = new ProjectIO();
   private final SnapResolver snapResolver =
       new SnapResolver(
           SNAP_TOLERANCE_PX,
           SEGMENT_SNAP_TOLERANCE,
           GRID_SPACING,
           GRID_SNAP_TOLERANCE,
-          GRID_DISTANCE_PENALTY,
           SEGMENT_DIRECTION_BONUS,
           SEGMENT_ALIGNMENT_THRESHOLD);
-  private final VertexLabelCalculator vertexLabelCalculator = new VertexLabelCalculator(VERTEX_LABEL_OFFSET);
-  private final List<Point2D> snapVertices = new ArrayList<>();
-  private final Deque<Command> undoStack = new ArrayDeque<>();
-  private final Deque<Command> redoStack = new ArrayDeque<>();
+  private FileChooser exportChooser;
+  private File lastDirectory;
+  private Window ownerWindow;
   private TriangleCounterService triangleService;
   private List<List<Point2D>> currentTriangles = List.of();
 
@@ -125,6 +136,13 @@ public final class MainViewController {
     if (segmentListView != null) {
       segmentListView.setItems(segmentItems);
     }
+    ownerWindow = root.getScene() != null ? root.getScene().getWindow() : null;
+    root.sceneProperty().addListener((obs, oldScene, newScene) -> {
+      if (newScene != null) {
+        ownerWindow = newScene.getWindow();
+        newScene.windowProperty().addListener((winObs, oldWindow, newWindow) -> ownerWindow = newWindow);
+      }
+    });
     segments.addListener((ListChangeListener<Segment>) change -> {
       rebuildSnapVertices();
       updateSegmentList();
@@ -132,6 +150,7 @@ public final class MainViewController {
     rebuildSnapVertices();
     updateSegmentList();
     configureToolbar();
+    configureSidePanelActions();
     wireCanvasEvents();
     configureHighlightToggle();
     configureTriangleService();
@@ -176,6 +195,12 @@ public final class MainViewController {
     updateUndoRedoButtons();
   }
 
+  private void configureSidePanelActions() {
+    if (exportButton != null) {
+      exportButton.setOnAction(e -> handleExport());
+    }
+  }
+
   private void wireCanvasEvents() {
     segmentCanvas.addEventHandler(MouseEvent.MOUSE_CLICKED, this::handleCanvasClick);
     segmentCanvas.addEventHandler(MouseEvent.MOUSE_MOVED, this::handleCanvasMove);
@@ -197,6 +222,7 @@ public final class MainViewController {
 
   private void configureTriangleService() {
     triangleService = new TriangleCounterService(segments);
+    triangleService.setCoordinateTolerance(TRIANGLE_COORD_TOLERANCE);
     triangleService.setListener(new TriangleCounterService.Listener() {
       @Override
       public void onStart() {
@@ -237,6 +263,48 @@ public final class MainViewController {
     triangleService.request();
   }
 
+  private void handleExport() {
+    ensureChoosers();
+    File file = exportChooser.showSaveDialog(getOwnerWindow());
+    if (file == null) {
+      return;
+    }
+    try {
+      projectIO.save(file.toPath(), TRIANGLE_COORD_TOLERANCE, List.copyOf(segments));
+      File parent = file.getParentFile();
+      if (parent != null && parent.isDirectory()) {
+        lastDirectory = parent;
+        updateChoosersDirectory();
+      }
+      setStatus("Exported " + file.getName());
+    } catch (IOException ex) {
+      setStatus("Export failed: " + ex.getMessage());
+    }
+  }
+
+  private Window getOwnerWindow() {
+    if (ownerWindow != null) {
+      return ownerWindow;
+    }
+    return root.getScene() != null ? root.getScene().getWindow() : null;
+  }
+
+  private void ensureChoosers() {
+    if (exportChooser == null) {
+      exportChooser = new FileChooser();
+      exportChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("JSON", "*.json"));
+      exportChooser.setTitle("Export Project");
+    }
+    updateChoosersDirectory();
+  }
+
+  private void updateChoosersDirectory() {
+    if (lastDirectory != null && lastDirectory.isDirectory()) {
+      if (exportChooser != null) {
+        exportChooser.setInitialDirectory(lastDirectory);
+      }
+    }
+  }
 
   private void handleCanvasClick(MouseEvent event) {
     if (event.getButton() != MouseButton.PRIMARY) {
