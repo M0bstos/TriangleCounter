@@ -1,7 +1,6 @@
 package app.tricount.graph;
 
 import app.tricount.geometry.Segment;
-import app.tricount.graph.Graph;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;

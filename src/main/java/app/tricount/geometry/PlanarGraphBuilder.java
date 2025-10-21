@@ -63,7 +63,7 @@ public final class PlanarGraphBuilder {
         int u = Math.min(va, vb);
         int v = Math.max(va, vb);
         long key = edgeKey(u, v);
-        Graph.E edge = edgesByKey.computeIfAbsent(key, k -> new Graph.E(u, v));
+        edgesByKey.computeIfAbsent(key, k -> new Graph.E(u, v));
         multiplicity.merge(key, 1, Integer::sum);
         if (collector != null) {
           collector.addVertex(va, a);

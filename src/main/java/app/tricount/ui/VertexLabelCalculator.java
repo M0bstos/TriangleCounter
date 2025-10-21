@@ -11,7 +11,6 @@ public final class VertexLabelCalculator {
   private static final int ANGLE_SAMPLES = 72;
   private static final double MIN_ACCEPTABLE_ANGLE_DEGREES = 32.0;
   private static final double MIN_CLEARANCE_PIXELS = 14.0;
-  private static final double MIN_SIN = Math.sin(Math.toRadians(6));
   private static final double STEP_PIXELS = 6.0;
   private static final double MAX_OFFSET_PIXELS = 140.0;
   private static final double ON_SEGMENT_TOLERANCE = 1e-3;

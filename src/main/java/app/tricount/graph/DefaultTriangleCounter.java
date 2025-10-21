@@ -364,17 +364,6 @@ public final class DefaultTriangleCounter implements TriangleCounter {
     return 0.5 * sum;
   }
 
-  private boolean usesBoundaryEdge(List<Integer> face, Set<Long> boundaryEdges) {
-    for (int i = 0; i < face.size(); i++) {
-      int a = face.get(i);
-      int b = face.get((i + 1) % face.size());
-      if (boundaryEdges.contains(directedKey(a, b))) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private int[] toArray(List<Integer> face) {
     int[] result = new int[face.size()];
     for (int i = 0; i < face.size(); i++) {

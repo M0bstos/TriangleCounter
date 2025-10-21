@@ -28,7 +28,6 @@ public final class SegmentCanvas extends Pane {
 
   public record VertexLabel(String id, double x, double y, double offsetX, double offsetY) {}
 
-  private final ObservableList<Segment> segments;
   private final Canvas gridCanvas = new Canvas();
   private final Group segmentGroup = new Group();
   private final Group triangleGroup = new Group();
@@ -39,7 +38,6 @@ public final class SegmentCanvas extends Pane {
   private final Circle snapIndicator = new Circle(5);
 
   public SegmentCanvas(ObservableList<Segment> segments) {
-    this.segments = segments;
     setPickOnBounds(true);
     gridCanvas.setMouseTransparent(true);
     previewLine.setVisible(false);
