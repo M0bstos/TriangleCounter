@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>app.tricount</groupId>
   <artifactId>triangle-counter</artifactId>
-  <version>0.1.0-SNAPSHOT</version>
+  <version>1.0.0</version>
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
     <maven.compiler.source>21</maven.compiler.source>
@@ -67,6 +67,110 @@
         <version>${javafx.maven.plugin.version}</version>
         <configuration>
           <mainClass>app.tricount.ui.JavaFxApp</mainClass>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.panteleyev</groupId>
+        <artifactId>jpackage-maven-plugin</artifactId>
+        <version>1.6.5</version>
+        <configuration>
+          <name>TriangleCounter</name>
+          <appVersion>1.0.0</appVersion>
+          <vendor>M0bstos</vendor>
+          <destination>target/dist</destination>
+          <input>target/jpackage-input</input>
+          <mainJar>${project.build.finalName}.jar</mainJar>
+          <mainClass>app.tricount.ui.JavaFxApp</mainClass>
+          <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.png</icon>
+          <javaOptions>
+            <option>-Dfile.encoding=UTF-8</option>
+          </javaOptions>
+          <linuxShortcut>true</linuxShortcut>
+          <linuxMenuGroup>Development</linuxMenuGroup>
+          <linuxPackageName>triangle-counter</linuxPackageName>
+          <linuxAppCategory>Development</linuxAppCategory>
+          <type>DEB</type>
+        </configuration>
+        <executions>
+          <!-- Linux DEB -->
+          <execution>
+            <id>linux</id>
+            <configuration>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.png</icon>
+              <type>DEB</type>
+            </configuration>
+          </execution>
+          <!-- Windows EXE -->
+          <execution>
+            <id>windows</id>
+            <configuration>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.ico</icon>
+              <type>EXE</type>
+              <winMenu>true</winMenu>
+              <winShortcut>true</winShortcut>
+              <winMenuGroup>Development</winMenuGroup>
+            </configuration>
+          </execution>
+          <!-- macOS DMG -->
+          <execution>
+            <id>mac</id>
+            <configuration>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.icns</icon>
+              <type>DMG</type>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>copy-dependencies</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy-dependencies</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/jpackage-input</outputDirectory>
+              <includeScope>runtime</includeScope>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-jar</id>
+            <phase>package</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>${project.artifactId}</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}/jpackage-input</outputDirectory>
+                  <destFileName>${project.build.finalName}.jar</destFileName>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <addClasspath>true</addClasspath>
+              <classpathPrefix>modules/</classpathPrefix>
+              <mainClass>app.tricount.ui.JavaFxApp</mainClass>
+            </manifest>
+          </archive>
         </configuration>
       </plugin>
     </plugins>
