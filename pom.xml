@@ -5,8 +5,6 @@
   <version>1.0.0</version>
   <properties>
     <maven.compiler.release>21</maven.compiler.release>
-    <maven.compiler.source>21</maven.compiler.source>
-    <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <javafx.version>21.0.3</javafx.version>
     <javafx.maven.plugin.version>0.0.8</javafx.maven.plugin.version>
@@ -57,11 +55,6 @@
     </pluginManagement>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>3.1.0</version>
-      </plugin>
-      <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
         <version>${javafx.maven.plugin.version}</version>
@@ -83,29 +76,31 @@
           <mainClass>app.tricount.ui.JavaFxApp</mainClass>
           <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.png</icon>
           <javaOptions>
+            <option>--module-path</option>
+            <option>$APPDIR</option>
+            <option>--add-modules</option>
+            <option>javafx.controls,javafx.fxml</option>
             <option>-Dfile.encoding=UTF-8</option>
           </javaOptions>
-          <linuxShortcut>true</linuxShortcut>
-          <linuxMenuGroup>Development</linuxMenuGroup>
-          <linuxPackageName>triangle-counter</linuxPackageName>
-          <linuxAppCategory>Development</linuxAppCategory>
-          <type>DEB</type>
         </configuration>
         <executions>
           <!-- Linux DEB -->
           <execution>
             <id>linux</id>
             <configuration>
-              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.png</icon>
               <type>DEB</type>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.png</icon>
+              <linuxShortcut>true</linuxShortcut>
+              <linuxMenuGroup>Development</linuxMenuGroup>
+              <linuxPackageName>triangle-counter</linuxPackageName>
+              <linuxAppCategory>Development</linuxAppCategory>
             </configuration>
           </execution>
-          <!-- Windows EXE -->
           <execution>
             <id>windows</id>
             <configuration>
-              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.ico</icon>
               <type>EXE</type>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.ico</icon>
               <winMenu>true</winMenu>
               <winShortcut>true</winShortcut>
               <winMenuGroup>Development</winMenuGroup>
@@ -115,8 +110,8 @@
           <execution>
             <id>mac</id>
             <configuration>
-              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.icns</icon>
               <type>DMG</type>
+              <icon>${project.basedir}/src/main/resources/app/tricount/ui/icons/app-icon.icns</icon>
             </configuration>
           </execution>
         </executions>
@@ -128,7 +123,7 @@
         <executions>
           <execution>
             <id>copy-dependencies</id>
-            <phase>package</phase>
+            <phase>prepare-package</phase>
             <goals>
               <goal>copy-dependencies</goal>
             </goals>
@@ -137,24 +132,29 @@
               <includeScope>runtime</includeScope>
             </configuration>
           </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.3.1</version>
+        <executions>
           <execution>
-            <id>copy-jar</id>
-            <phase>package</phase>
+            <id>copy-jar-to-jpackage-input</id>
+            <phase>install</phase>
             <goals>
-              <goal>copy</goal>
+              <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <artifactItems>
-                <artifactItem>
-                  <groupId>${project.groupId}</groupId>
-                  <artifactId>${project.artifactId}</artifactId>
-                  <version>${project.version}</version>
-                  <type>jar</type>
-                  <overWrite>true</overWrite>
-                  <outputDirectory>${project.build.directory}/jpackage-input</outputDirectory>
-                  <destFileName>${project.build.finalName}.jar</destFileName>
-                </artifactItem>
-              </artifactItems>
+              <outputDirectory>${project.build.directory}/jpackage-input</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>${project.build.finalName}.jar</include>
+                  </includes>
+                </resource>
+              </resources>
             </configuration>
           </execution>
         </executions>
@@ -167,9 +167,13 @@
           <archive>
             <manifest>
               <addClasspath>true</addClasspath>
-              <classpathPrefix>modules/</classpathPrefix>
+              <classpathPrefix>.</classpathPrefix>
               <mainClass>app.tricount.ui.JavaFxApp</mainClass>
+              <useUniqueVersions>false</useUniqueVersions>
             </manifest>
+            <manifestEntries>
+              <Class-Path>.</Class-Path>
+            </manifestEntries>
           </archive>
         </configuration>
       </plugin>
